@@ -1,10 +1,13 @@
 # Semantic Cache Analysis
 
-This repo is clone of [langcache](https://github.com/jiashenC/langcache) and certain features like dynamic distance threshold tuning and analysis of the `Quora Question Pairs dataset` have been added to it.
+This repo is clone of [langcache](https://github.com/jiashenC/langcache) and certain features like dynamic distance threshold tuning and analysis of the [Quora Question Pairs dataset](https://www.kaggle.com/competitions/quora-question-pairs/data)
+ have been added to it.
 
 Dynamic distance threshold tuning gives us control over how we can tune the distance threshold i.e. set different sensitivity to false positives and false negatives, set a sensitivity rate to decrease the impact of false positives and false negatives to the distance threshold as training on the dataset progresses.
 
 ## How to use
+
+Step 0: pip install all requirements mentioned in the requirements.txt file 
 
 Step 1: Download the Quora Question Pairs dataset and add it in the test repo
 
