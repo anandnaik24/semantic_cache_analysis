@@ -5,7 +5,10 @@ from collections import defaultdict
 
 from dataset import read
 from langcache.core import Cache
+import matplotlib.pyplot as plt
 
+number_of_questions = 400
+tune_policy = "dynamic"
 
 # Preprocessing.
 id_to_question = {}
@@ -13,6 +16,8 @@ similarity_question = defaultdict(lambda: set([]))
 
 total = 0
 total_similar = 0
+cluster_num = 0
+cluster = defaultdict(int)
 
 for data in read():
     total += 1
@@ -21,6 +26,10 @@ for data in read():
     q1 = data["q1"]
     q2 = data["q2"]
     duplicate = data["duplicate"]
+
+    qid1_in_cluster = qid1 in cluster
+    qid2_in_cluster = qid2 in cluster
+
     if qid1 not in id_to_question:
         id_to_question[qid1] = q1
     if qid2 not in id_to_question:
@@ -34,30 +43,50 @@ print("Total pair", total)
 print("Total similar pair", total_similar)
 print("Num of question", len(id_to_question))
 
+max_len = 0
+len_dict = defaultdict(int)
+
+for key, value in similarity_question.items():
+    len_dict[len(value)] += 1
+    max_len = max(max_len, len(value))
+
+print("Max related questions ", max_len)
+print(len_dict)
+
+tuple_list = [(key, value) for key, value in len_dict.items()]
+sorted_tuples = sorted(tuple_list, key=lambda x: x[0])
+print("Sorted tuples ", sorted_tuples)
+
 qid_list = list(id_to_question.keys())
-qid_list = qid_list[:200]
+qid_list = qid_list[:number_of_questions]
 split_idx = len(qid_list) // 2
 
-random.seed(0)
+random.seed(6)
 random.shuffle(qid_list)
 
 train_qid_list, test_qid_list = set(qid_list[:split_idx]), set(qid_list[split_idx:])
 
-cache = Cache(tune_frequency=0, tune_policy="recall")
+cache = Cache(tune_frequency=0, tune_policy=tune_policy)
+
+threshold_values = []
+threshold_values.append(cache.distance_threshold)
+
 for train_qid in tqdm(train_qid_list):
     # Insert cache.
     cache.put(id_to_question[train_qid], str(train_qid))
 
-tp, fn, fp = 0, 0, 0
+tp, fn, fp, tn = 0, 0, 0, 0
 for i, test_qid in tqdm(enumerate(test_qid_list)):
     # Test tuning.
-    if i % 5 == 0:
-        ret_key, ret_value, ret_distance = cache._top_k(id_to_question[test_qid])
-        response = "Equal" if int(ret_value) in similarity_question[test_qid] else "Not Equal"
-        cache._evaluate_and_tune(id_to_question[test_qid], ret_key, ret_distance, response=response)
+    # if i % 5 == 0:
+    ret_key, ret_value, ret_distance = cache._top_k(id_to_question[test_qid])
+    response = "Equal" if int(ret_value) in similarity_question[test_qid] else "Not Equal"
+    cache._evaluate_and_tune(id_to_question[test_qid], ret_key, ret_distance, response=response)
 
     # Get cache.
     train_qid = cache.get(id_to_question[test_qid])
+
+    threshold_values.append(cache.distance_threshold)
 
     # Get evaluation metrics.
     if train_qid is not None:
@@ -71,7 +100,15 @@ for i, test_qid in tqdm(enumerate(test_qid_list)):
         similar_qid_list = similarity_question[test_qid]
         if len(similar_qid_list & train_qid_list) != 0:
             fn += 1
+        else:
+            tn += 1
 
 print("Precision", tp / (tp + fp))
 print("Recall", tp / (tp + fn))
-print("TP FN FP", tp, fn, fp)
+print("TP FN FP TN", tp, fn, fp, tn)
+
+plt.plot(threshold_values, marker='o', linestyle='-')
+plt.xlabel('Testing Data Index')
+plt.ylabel('Distance Threshold')
+plt.title(f'Tuning Recall: TP FN FP TN {tp} {fn} {fp} {tn}\nFinal Threshold {threshold_values[-1]:.3f}')
+plt.show()

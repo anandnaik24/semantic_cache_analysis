@@ -43,13 +43,35 @@ class Cache:
         self.init = False
 
         # Threshold distance and tuning hyper-parameter.
-        self.distance_threshold = 4
+        self.distance_threshold = 1
         self.tune_time = 0
         self.tune_frequency = tune_frequency
         self.tune_policy = tune_policy
 
+        self.sensitivity_fn = 1.01
+        self.sensitivity_fp = 1.01
+        self.sensitivity_rate = 0.95
+        self.sensitivity_fn_min = 0.01
+        self.sensitivity_fp_min = 0.01
+
         # Statistics.
         self.stats_list = []
+        self.append_flag = 0
+
+        self.cursor.query(
+            f"""
+                DROP INDEX IF EXISTS {self.cache_name}
+            """
+        ).df()
+        print("Dropped index")
+
+        self.cursor.query(
+            f"""
+                DROP TABLE IF EXISTS {self.cache_name}
+            """
+        ).df()
+        print("Dropped table")
+
 
     def _replace_str(self, string: str):
         replace_list = [
@@ -86,18 +108,27 @@ class Cache:
                 self.stats_list.append(
                     SimpleStatistics(tp=1, fn=0, fp=0, distance=distance)
                 )
+                self.append_flag = 1
             else:
                 self.stats_list.append(
                     SimpleStatistics(tp=0, fn=1, fp=0, distance=distance)
                 )
+                self.sensitivity_fn = self.sensitivity_fn * self.sensitivity_rate
+                self.sensitivity_fn = max(self.sensitivity_fn, self.sensitivity_fn_min)
+            self.append_flag = 1
         elif response == "Not Equal":
             if distance < self.distance_threshold:
                 self.stats_list.append(
                     SimpleStatistics(tp=0, fn=0, fp=1, distance=distance)
                 )
+                self.sensitivity_fp = self.sensitivity_fp * self.sensitivity_rate
+                self.sensitivity_fp = max(self.sensitivity_fp, self.sensitivity_fp_min)
+                self.append_flag = 1
 
         # Tune the threshold distance.
-        self.distance_threshold = tune(self.stats_list, self.tune_policy)
+        self.distance_threshold = tune(self.stats_list, self.tune_policy, self.distance_threshold, self.append_flag, self.sensitivity_fn, self.sensitivity_fp)
+        self.append_flag = 0
+        
 
     def _top_k(self, key: str, k: int = 1):
         # Rewrite key double quotes.
@@ -144,6 +175,7 @@ class Cache:
         value = self._replace_str(value)
 
         if not self.init:
+
             self.cursor.query(
                 f"""
                 CREATE TABLE {self.cache_name} (key TEXT(1000), value TEXT(1000))
