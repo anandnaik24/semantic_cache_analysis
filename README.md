@@ -1,6 +1,8 @@
 # Semantic Cache Analysis
 
-When we use any image generative AI application, we would input a query that sounds intuitive to us. However, the application would not generative the required image because we are not able to provide a descriptive prompt. This descriptive prompt is not intuitive to us. So, we can start with a prompt that is intuitive, search for similar prompts in a database of prompts and and keep refining our prompt till we are satisfied that it does describe the image that we want to generate and then only, input the prompt to the application as generation of images is quite expensive computationally.
+This repo is clone of [langcache](https://github.com/jiashenC/langcache) and certain features like dynamic distance threshold tuning and analysis of the `Quora Question Pairs dataset` have been added to it.
+
+Dynamic distance threshold tuning gives us control over how we can tune the distance threshold i.e. set different sensitivity to false positives and false negatives, set a sensitivity rate to decrease the impact of false positives and false negatives to the distance threshold as training on the dataset progresses.
 
 ## How to use
 
