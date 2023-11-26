@@ -1,0 +1,11 @@
+evadb
+pandas
+numpy
+random
+tqdm
+collections
+matplotlib
+sentence_transformers
+openai
+string
+typing
